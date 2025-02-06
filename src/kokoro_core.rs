@@ -54,7 +54,7 @@ impl KokoroModel {
             .with_optimization_level(GraphOptimizationLevel::Level3)
             .unwrap()
             .with_execution_providers([
-                CUDAExecutionProvider::default().build(),
+                // CUDAExecutionProvider::default().build(),
                 CPUExecutionProvider::default().build(),
             ])
             .unwrap()

@@ -5,13 +5,14 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.86"
-ort = { version = "2.0.0-rc.9", features = ["cuda", "tensorrt"] }
+ort = { version = "2.0.0-rc.9", features = ["copy-dylibs", "cuda", "half", "load-dynamic", "ndarray", "tensorrt"] }
 ndarray = "0.16.1"
 actix-multipart = "0.7.2"
 serde = { version = "1.0.204", features = ["derive"] }
 dotenvy = "0.15.7"
 actix-web = { version = "4.8.0", features = ["compress-brotli", "compress-gzip", "compress-zstd", "cookies", "http2", "macros", "unicode"], default-features = false }
 lazy_phonememize = { git = "https://github.com/heabeounMKTO/lazy_phonememize", version = "0.1.0" }
+# lazy_phonememize = { version = "0.1.0", path = "../lazy_phonememize" }
 regex = "1.11.1"
 lazy_static = "1.5.0"
 serde_json = "1.0.138"
@@ -19,8 +20,15 @@ byteorder = "1.5.0"
 safetensors = "0.5.2"
 bytemuck = "1.21.0"
 hound = "3.5.1"
+clap = { version = "4.5.28", features = ["derive"] }
 
+[lib]
+name="kokoro_rs"
+path="src/lib.rs"
 
+[[bin]]
+name="kokoro_cli"
+path="src/kokoro_cli.rs"
 
 [profile.release]
 opt-level = "z"
