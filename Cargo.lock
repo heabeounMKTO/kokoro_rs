@@ -1038,7 +1038,7 @@ checksum = "d4345964bb142484797b161f473a503a434de77149dd8c7427788c6e13379388"
 [[package]]
 name = "lazy_phonememize"
 version = "0.1.0"
-source = "git+https://github.com/heabeounMKTO/lazy_phonememize#f32d523093f575dc649b54c9633bb03e17d632f3"
+source = "git+https://github.com/heabeounMKTO/lazy_phonememize#016c564fd6e8dd337a46d4cef77c88f8e204ca88"
 dependencies = [
  "anyhow",
  "clap",

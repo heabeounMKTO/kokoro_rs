@@ -1,35 +1,54 @@
-use crate::core::KokoroInput;
-use lazy_phonememize::phonememizer::convert_to_phonemes;
-use byteorder::{LittleEndian, ReadBytesExt};
-use ndarray::ArrayD;
-use ndarray::{ArrayBase, Axis, Dim, IxDynImpl, OwnedRepr, ViewRepr};
-/// conversion of Tokenizer class from
-/// https://github.com/thewh1teagle/kokoro-onnx/blob/main/src/kokoro_onnx/tokenizer.py
+use crate::kokoro_core::EN_G2P;
+use hound;
+use ndarray::{Array1, ArrayBase, Axis, Dim, OwnedRepr, ViewRepr};
 use safetensors::SafeTensors;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::read;
-use std::fs::File;
-use std::io::{BufReader, Read};
 
 /// writing HashMap<String, ArrayBase<OwnedRepr<f32>, Dim<IxDynImpl>>>  every fucking time is
 /// CRAZY
 /// TODO: refactor to a [510, 1, 256] instead of some dynamic array bullshit
 #[derive(Debug)]
 pub struct KokoroVoice {
-    pub styles: HashMap<String, ArrayBase<OwnedRepr<f32>, Dim<IxDynImpl>>>,
+    pub styles: HashMap<String, ArrayBase<OwnedRepr<f32>, Dim<[usize; 3]>>>,
 }
 
-/// add 0 in first and last element for padding
+pub fn save_wav(data: &Array1<f32>, sample_rate: u32, filename: &str) -> Result<(), hound::Error> {
+    let spec = hound::WavSpec {
+        channels: 1,
+        sample_rate,
+        bits_per_sample: 16,
+        sample_format: hound::SampleFormat::Int,
+    };
+
+    let mut writer = hound::WavWriter::create(filename, spec)?;
+
+    for &sample in data {
+        // Convert float to 16-bit integer
+        let scaled = (sample * 32767.0) as i16;
+        writer.write_sample(scaled)?;
+    }
+
+    Ok(())
+}
+
 pub fn string_to_tokens(text: &str, vocab: &HashMap<char, usize>) -> Vec<usize> {
-    let _g2p = convert_to_phonemes(text, Some("en"), lazy_phonememize::phonememizer::PhonemeOutputType::ASCII).unwrap();
-    let _nrm_TEXT = normalize_text(&_g2p);
-    let tokens: Vec<usize> = _nrm_TEXT 
+    let _nrm_text = normalize_text(&text.to_owned());
+    let _g2p = &EN_G2P
+        .convert_to_phonemes(
+            &_nrm_text,
+            lazy_phonememize::phonememizer::PhonemeOutputType::ASCII,
+        )
+        .unwrap();
+    println!("[DEBUG] G2P {}", &_g2p);
+    let tokens: Vec<usize> = _g2p
         .chars()
         .filter_map(|c| vocab.get(&c))
         .copied()
         .collect();
     println!("[DEBUG] STRING TO TOKENS {:?}", tokens);
+
+    // add 0 in first and last element for padding
     let mut final_v = Vec::with_capacity(tokens.len() + 2);
     final_v.push(0);
     final_v.extend(tokens);
@@ -40,13 +59,12 @@ pub fn string_to_tokens(text: &str, vocab: &HashMap<char, usize>) -> Vec<usize> 
 pub fn kokoro_read_voice_vectors(voice_path: &str) -> KokoroVoice {
     let data = read(voice_path).unwrap();
     let tensors = SafeTensors::deserialize(&data).unwrap();
-    let mut voice_mappings: HashMap<String, ArrayBase<OwnedRepr<f32>, Dim<IxDynImpl>>> =
+    let mut voice_mappings: HashMap<String, ArrayBase<OwnedRepr<f32>, Dim<[usize; 3]>>> =
         HashMap::new();
     for (_name, tnsr) in tensors.tensors() {
         // let mut array = Vec::with_capacity(tnsr.shape());
-        let shape = tnsr.shape();
         let data: Vec<f32> = bytemuck::cast_slice(tnsr.data()).to_vec();
-        let array = ArrayD::from_shape_vec(shape, data).unwrap();
+        let  array = ArrayBase::from_shape_vec([510, 1, 256], data).unwrap();
         voice_mappings.insert(String::from(_name), array);
     }
     KokoroVoice {
@@ -56,8 +74,8 @@ pub fn kokoro_read_voice_vectors(voice_path: &str) -> KokoroVoice {
 
 pub fn kokoro_select_voice(
     token_index: usize,
-    voice: &ArrayBase<OwnedRepr<f32>, Dim<IxDynImpl>>,
-) -> ArrayBase<ViewRepr<&f32>, Dim<IxDynImpl>> {
+    voice: &ArrayBase<OwnedRepr<f32>, Dim<[usize; 3]>>,
+) -> ArrayBase<ViewRepr<&f32>, Dim<[usize; 2]>> {
     let select_voice = voice.index_axis(Axis(0), token_index); // `string_to_token` accounts for +2 padding, so 510 + 2 (0 front + 0 back)
     select_voice
 }
