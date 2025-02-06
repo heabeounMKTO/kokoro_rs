@@ -1,0 +1,8 @@
+requests
+safetensors
+torch
+
+
+
+
+
