@@ -4,12 +4,34 @@ use ndarray::{Array1, ArrayBase, Axis, Dim, OwnedRepr, ViewRepr};
 use safetensors::SafeTensors;
 use std::collections::HashMap;
 use std::fs::read;
+use std::usize;
+
+
+
+
 
 /// writing HashMap<String, ArrayBase<OwnedRepr<f32>, Dim<IxDynImpl>>>  every fucking time is
 /// CRAZY
 #[derive(Debug)]
 pub struct KokoroVoice {
     pub styles: HashMap<String, ArrayBase<OwnedRepr<f32>, Dim<[usize; 3]>>>,
+}
+
+pub fn save_wav_scalar(data: Vec<f32>, sample_rate: u32, filename: &str) -> Result<(), hound::Error> {
+    let spec = hound::WavSpec {
+        channels: 1,
+        sample_rate,
+        bits_per_sample: 16,
+        sample_format: hound::SampleFormat::Int,
+    };
+
+    let mut writer = hound::WavWriter::create(filename, spec)?;
+
+    for sample in data {
+        let scaled = (sample * 32767.0) as i16;
+        writer.write_sample(scaled)?;
+    }
+    Ok(())
 }
 
 pub fn save_wav(data: &Array1<f32>, sample_rate: u32, filename: &str) -> Result<(), hound::Error> {
@@ -27,11 +49,30 @@ pub fn save_wav(data: &Array1<f32>, sample_rate: u32, filename: &str) -> Result<
         let scaled = (sample * 32767.0) as i16;
         writer.write_sample(scaled)?;
     }
-
     Ok(())
 }
 
-pub fn string_to_tokens(text: &str, vocab: &HashMap<char, usize>) -> Vec<usize> {
+pub fn string_to_phoneme(text: &str) -> String {
+    let _nrm_text = normalize_text(&text.to_owned());
+    let _g2p = EN_G2P
+        .convert_to_phonemes(
+            &_nrm_text,
+            lazy_phonememize::phonememizer::PhonemeOutputType::ASCII,
+        )
+        .unwrap();
+    _g2p
+}
+
+
+pub fn pad_token_vec_with_zero(input_token: Vec<usize>) -> Vec<usize> {
+        let mut final_v = Vec::with_capacity(input_token.len() + 2);
+        final_v.push(0);
+        final_v.extend(input_token);
+        final_v.push(0);
+        final_v
+}
+
+pub fn string_to_tokens(text: &str, vocab: &HashMap<char, usize>, pad: bool) -> Vec<usize> {
     let _nrm_text = normalize_text(&text.to_owned());
     let _g2p = &EN_G2P
         .convert_to_phonemes(
@@ -45,14 +86,11 @@ pub fn string_to_tokens(text: &str, vocab: &HashMap<char, usize>) -> Vec<usize> 
         .filter_map(|c| vocab.get(&c))
         .copied()
         .collect();
-    println!("[DEBUG] STRING TO TOKENS {:?}", tokens);
-
-    // add 0 in first and last element for padding
-    let mut final_v = Vec::with_capacity(tokens.len() + 2);
-    final_v.push(0);
-    final_v.extend(tokens);
-    final_v.push(0);
-    final_v
+    if !pad {
+        tokens
+    } else {
+        pad_token_vec_with_zero(tokens)
+    }
 }
 
 pub fn kokoro_read_voice_vectors(voice_path: &str) -> KokoroVoice {
@@ -70,6 +108,16 @@ pub fn kokoro_read_voice_vectors(voice_path: &str) -> KokoroVoice {
         styles: voice_mappings,
     }
 }
+
+
+pub fn chunk_string(s: &str, chunk_size: usize) -> Vec<String> {
+    s.chars()
+        .collect::<Vec<_>>()
+        .chunks(chunk_size)
+        .map(|chunk| chunk.iter().collect())
+        .collect()
+}
+
 
 pub fn kokoro_select_voice(
     token_index: usize,
@@ -138,10 +186,8 @@ pub fn normalize_text(text: &str) -> String {
         .split(' ')
         .map(|word| {
             if word.contains("$") || word.contains("£") {
-                // Simple money handling
                 word.replace("$", "dollars ").replace("£", "pounds ")
             } else if word.contains("-") && word.chars().any(|c| c.is_digit(10)) {
-                // Replace hyphens between numbers with "to"
                 word.replace("-", " to ")
             } else {
                 word.to_string()

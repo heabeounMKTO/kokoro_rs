@@ -1,5 +1,5 @@
 use crate::kokoro_utils::{
-    kokoro_read_voice_vectors, kokoro_select_voice, string_to_tokens, KokoroVoice,
+    kokoro_read_voice_vectors, kokoro_select_voice, string_to_phoneme, string_to_tokens, KokoroVoice
 };
 use anyhow::Result;
 use lazy_phonememize::phonememizer::LazyPhonemizer;
@@ -13,7 +13,7 @@ use ort::{
 };
 use std::collections::HashMap;
 lazy_static! {
-    pub static ref MAX_PHONEME_LENGTH: usize = 512;
+    pub static ref MAX_PHONEME_LENGTH: usize = 256;
     pub static ref VOCAB: HashMap<char, usize> = {
         let pad = "$";
         let punctuation = ";:,.!?¡¿—…\"«»\"\" ";
@@ -113,7 +113,7 @@ pub struct KokoroInput {
 
 impl KokoroInput {
     pub fn new(input_string: &str, voice_name: &str, speed: f32) -> KokoroInput {
-        let _tokens = string_to_tokens(input_string, &VOCAB);
+        let _tokens = string_to_tokens(input_string, &VOCAB, true);
         let selected_voice = kokoro_select_voice(
             _tokens.len().to_owned(),
             &VOICES.styles.get(voice_name).unwrap().to_owned(),
@@ -128,4 +128,21 @@ impl KokoroInput {
             speed: speed,
         }
     }
+
+    pub fn from_tokens(input_tokens: Vec<usize>, voice_name: &str, speed: f32) -> KokoroInput {
+        let selected_voice = kokoro_select_voice(
+            input_tokens.len().to_owned(),
+            &VOICES.styles.get(voice_name).unwrap().to_owned(),
+        )
+        .to_owned()
+        .into_shape_with_order((1, 256))
+        .unwrap()
+        .to_owned();
+        KokoroInput {
+            tokens: input_tokens.iter().map(|&x| x as i64).collect(),
+            voice: selected_voice,
+            speed: speed,
+        }
+    }
+
 }
