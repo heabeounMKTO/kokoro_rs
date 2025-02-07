@@ -7,7 +7,6 @@ use std::fs::read;
 
 /// writing HashMap<String, ArrayBase<OwnedRepr<f32>, Dim<IxDynImpl>>>  every fucking time is
 /// CRAZY
-/// TODO: refactor to a [510, 1, 256] instead of some dynamic array bullshit
 #[derive(Debug)]
 pub struct KokoroVoice {
     pub styles: HashMap<String, ArrayBase<OwnedRepr<f32>, Dim<[usize; 3]>>>,

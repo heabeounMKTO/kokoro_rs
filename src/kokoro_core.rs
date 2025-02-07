@@ -51,10 +51,12 @@ impl KokoroModel {
     pub fn load_model(model_path: &str, quant_level: KokoroQuantLevel) -> KokoroModel {
         let model: Session = Session::builder()
             .unwrap()
+            // .with_parallel_execution(true)
+            // .unwrap()
             .with_optimization_level(GraphOptimizationLevel::Level3)
             .unwrap()
             .with_execution_providers([
-                // CUDAExecutionProvider::default().build(),
+                CUDAExecutionProvider::default().build(),
                 CPUExecutionProvider::default().build(),
             ])
             .unwrap()
