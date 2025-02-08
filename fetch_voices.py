@@ -1,4 +1,5 @@
 
+import os
 import io
 import numpy as np
 import requests
@@ -24,8 +25,7 @@ for i, name in enumerate(names, 1):
     content = io.BytesIO(r.content)
     data: np.ndarray = torch.load(content, weights_only=True)
     voices[name] = data
-
-
+os.makedirs("./models/" , exist_ok=True)
 sft_path = "./models/voices.safetensors"
 save_file(voices, sft_path)
 # with open(npz_path, "wb") as f:

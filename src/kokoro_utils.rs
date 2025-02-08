@@ -6,10 +6,6 @@ use std::collections::HashMap;
 use std::fs::read;
 use std::usize;
 
-
-
-
-
 /// writing HashMap<String, ArrayBase<OwnedRepr<f32>, Dim<IxDynImpl>>>  every fucking time is
 /// CRAZY
 #[derive(Debug)]
